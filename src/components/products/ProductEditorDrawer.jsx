@@ -19,6 +19,7 @@ function buildInitialDraft(product, categories, models, storeConfig) {
       customArtworkUrl: product.customArtworkUrl || null,
       customArtworkFileName: product.customArtworkFileName || null,
       featuredInHero: Boolean(product.featuredInHero),
+      active: product.active !== false,
       salonSpan: product.salonSpan || 4,
       salonOffset: product.salonOffset ?? 0,
       allModels:
@@ -40,6 +41,7 @@ function buildInitialDraft(product, categories, models, storeConfig) {
     customArtworkUrl: null,
     customArtworkFileName: null,
     featuredInHero: false,
+    active: true,
     salonSpan: 4,
     salonOffset: 0,
     allModels: true,
@@ -178,6 +180,7 @@ export function ProductEditorDrawer({ open, product = null, onClose }) {
       customArtworkUrl: draft.artworkMode === 'upload' ? draft.customArtworkUrl : null,
       customArtworkFileName: draft.artworkMode === 'upload' ? draft.customArtworkFileName : null,
       featuredInHero: draft.featuredInHero,
+      active: draft.active,
       salonSpan: draft.salonSpan,
       salonOffset: draft.salonOffset,
       compatibleModelIds: effectiveCompatibleIds,
@@ -495,8 +498,28 @@ export function ProductEditorDrawer({ open, product = null, onClose }) {
               ) : null}
             </div>
 
-            {/* Hero featured + Salon hang layout controls */}
+            {/* Active visibility + Hero featured + Salon hang layout controls */}
             <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <label
+                    htmlFor="prod-active-switch"
+                    className="block text-[15px] font-semibold text-[var(--charcoal)]"
+                  >
+                    حالة الظهور ({draft.active ? 'متاح في المتجر' : 'مخفي مؤقتاً'})
+                  </label>
+                  <p className="type-caption text-[13px]">
+                    تقدر تخفي التصميم مؤقتاً من المتجر من غير ما تمسحه.
+                  </p>
+                </div>
+                <SwitchToggle
+                  id="prod-active-switch"
+                  checked={draft.active}
+                  onChange={(val) => setDraft((prev) => ({ ...prev, active: val }))}
+                  label="تفعيل ظهور التصميم في المتجر"
+                />
+              </div>
+
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <label

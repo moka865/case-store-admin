@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { InlineConfirmDelete } from '../components/common/InlineConfirmDelete';
 import { PageHeading } from '../components/common/PageHeading';
+import { SwitchToggle } from '../components/common/SwitchToggle';
 import { SearchIcon } from '../components/icons/Icons';
 import { PhoneCaseMockup } from '../components/mockup/PhoneCaseMockup';
 import { ProductEditorDrawer } from '../components/products/ProductEditorDrawer';
@@ -15,7 +16,8 @@ const EASE = [0.22, 1, 0.36, 1];
  * Boldness lives in the vibrant live PhoneCaseMockup thumbnails hanging directly on plaster.
  */
 export function ProductsPage() {
-  const { products, categories, storeConfig, previewModel, deleteProduct } = useAdmin();
+  const { products, categories, storeConfig, previewModel, toggleProductActive, deleteProduct } =
+    useAdmin();
   const prefersReducedMotion = useReducedMotion();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,7 +85,7 @@ export function ProductsPage() {
           <div
             role="tablist"
             aria-label="تصفية حسب القسم"
-            className="no-scrollbar flex items-center gap-2 overflow-x-auto py-1"
+            className="no-scrollbar flex items-center gap-2 overflow-x-auto px-1 py-1.5"
           >
             <button
               type="button"
@@ -162,9 +164,15 @@ export function ProductsPage() {
                       />
                     </div>
 
-                    {/* English design name + Arabic category */}
+                    {/* English design name + Arabic category + visibility */}
                     <div className="min-w-0 md:col-span-4">
-                      <h2 className="text-[18px] font-semibold leading-[1.35] text-[var(--charcoal)]">
+                      <h2
+                        className={`text-[18px] font-semibold leading-[1.35] ${
+                          product.active === false
+                            ? 'text-[var(--graphite)]'
+                            : 'text-[var(--charcoal)]'
+                        }`}
+                      >
                         <bdi dir="ltr">{product.name}</bdi>
                       </h2>
                       <p className="type-caption mt-0.5 text-[14px]">
@@ -174,24 +182,34 @@ export function ProductsPage() {
                             في الواجهة
                           </span>
                         ) : null}
+                        {product.active === false ? (
+                          <span className="ms-3 text-[var(--graphite)]">مخفي مؤقتاً</span>
+                        ) : null}
                       </p>
                     </div>
 
                     {/* Price + compatible model count */}
-                    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 md:col-span-4 md:justify-between">
+                    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 md:col-span-3 md:justify-between">
                       <span className="text-[16px] font-bold tabular-nums text-[var(--charcoal)]">
                         {product.price} {storeConfig.currencyLabel}
                       </span>
                       <span className="type-caption tabular-nums text-[14px]">
                         {modelsCount} موديل
                       </span>
-                      <span className="type-caption hidden tabular-nums text-[13px] lg:inline">
-                        {product.salonSpan || 4} أعمدة
-                      </span>
                     </div>
 
-                    {/* Inline actions (عدّل / امسح with inline confirm) */}
-                    <div className="col-span-2 flex flex-wrap items-center gap-5 md:col-span-3 md:justify-end">
+                    {/* Inline active toggle + actions */}
+                    <div className="col-span-2 flex flex-wrap items-center gap-4 md:col-span-4 md:justify-end">
+                      <div className="inline-flex items-center gap-2">
+                        <SwitchToggle
+                          checked={product.active !== false}
+                          onChange={(val) => toggleProductActive(product.id, val)}
+                          label={`إتاحة تصميم ${product.name}`}
+                        />
+                        <span className="type-caption text-[13px]">
+                          {product.active !== false ? 'متاح' : 'مخفي'}
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => openEdit(product)}

@@ -19,4 +19,5 @@ export const GOVERNORATES = [
   { id: 'assiut', nameAr: 'أسيوط', shippingFee: 90, estimatedDays: '4-6', codAvailable: true },
   { id: 'aswan', nameAr: 'أسوان', shippingFee: 95, estimatedDays: '4-6', codAvailable: true },
   { id: 'red-sea', nameAr: 'البحر الأحمر', shippingFee: 95, estimatedDays: '4-6', codAvailable: true },
+  { id: 'north-sinai', nameAr: 'شمال سيناء', shippingFee: 110, estimatedDays: '5-7', codAvailable: false },
 ];

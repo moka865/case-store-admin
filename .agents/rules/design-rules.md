@@ -1,28 +1,23 @@
-# Design rules — Admin Catalog Workspace (`case-store-admin`)
+# Design rules — Admin Operations & Catalog Workspace (`case-store-admin`)
 
 ## Source of truth
-- Before writing or changing any UI (components, pages, styles, animations), read `DESIGN.md` in the project root and follow it strictly.
-- Its tokens (colors, type, spacing, radius, motion) are the single source of truth. Define them once as CSS variables / Tailwind theme values. Never invent new colors, fonts, or radii.
-- Never modify any file inside the sibling `../case-store` project.
+- Before writing or changing any UI (components, pages, styles, animations), read `DESIGN.md` in `case-store-admin` and follow it strictly.
+- Brand tokens in `src/index.css` (`#010000`, `#F7F6F2`, `#ECEAE4`, `#FFFFFF`, `#111317`, `#4E535C`, `#D40C14`, `#FECE05`, `#0E6F4F`), `8px`/`12px`/`999px` radii, and self-hosted `Cairo` + `IBM Plex Sans Arabic` + `Bricolage Grotesque` fonts match the official **غلاف** storefront 1:1.
+- Never modify any code files inside the sibling `../case-store` project.
 
 ## Arabic and RTL
-- The workspace is Arabic and right-to-left (`lang="ar"`, `dir="rtl"`). Wrap English design names, phone brands/models, and slugs in `<bdi dir="ltr">`.
-- Use logical CSS properties and Tailwind logical utilities only (`ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `text-start`). Mirror directional icons; never mirror phone mockups or logos.
+- The workspace is Arabic and right-to-left (`lang="ar"`, `dir="rtl"`). Wrap English design names, phone brands/models, order IDs (`GH-...`), request IDs (`MM-...`), mobile numbers, and signed fees (`+50`) in `<bdi dir="ltr">`.
+- Use logical CSS properties and Tailwind logical utilities only (`ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `text-start`). Mirror directional icons; never mirror logos or phone mockups.
 - Never apply letter-spacing to Arabic text.
-- Write all Arabic copy yourself in light Egyptian colloquial following "Voice and copy" in `DESIGN.md`, and double-check spelling.
+- Write all UI copy in friendly Egyptian Arabic (`عامية مصرية بسيطة`) with **zero Arabic diacritics (tashkeel `[\u064B-\u065F\u0670]`)**.
 
-## Plan before building
-- Before building a new page or major section, write a short design plan: layout concept, one bold element per screen, RTL ASCII wireframes (desktop & mobile), and an Avoid-list check.
-- If any part reads like a generic SaaS admin dashboard, revise it before coding.
-
-## Build rules
-- Stack: React + Tailwind CSS + Motion + `react-router-dom`. Don't add extra UI component or icon libraries.
-- Motion is strictly user-triggered (`prefers-reduced-motion` respected). No scroll-reveals, no hover-lift on rows or mockups.
-- All data reads and writes go exclusively through `src/services/adminService.js` + `AdminContext` using identical schemas to `case-store`, persisted in versioned `localStorage` keys so a shared API can swap in cleanly later.
+## Dashboard & Operations Integrity
+- Derive every KPI, count, revenue sum, model coverage alert, and shipping figure strictly from `AdminContext` + `src/utils/dashboardMetrics.js`. Never display hardcoded or synthetic trend percentages.
+- Respect role guards from `AdminLayout.jsx`: hide Catalog links (`/products`, `/categories`, `/models`, `/shipping`) when viewing as `ops`.
+- Motion is strictly user-triggered (`prefers-reduced-motion` respected). Avoid heavy `backdrop-filter: blur` overlays.
+- All data reads and writes go exclusively through `src/services/adminService.js` + `AdminContext` synced with the `case-store` Version 1 handoff schema.
 - Never use `window.confirm` or `window.alert`; use inline confirmations and direct validation messages.
 
-## Before you finish
-- Run `npm run build` cleanly.
-- Open the running app in the browser at `390px` and `1440px` wide in RTL and take screenshots of every section and drawer.
-- Critique the screenshots against `DESIGN.md`, find the most generic-looking element, and fix it.
-- Report what you changed in two or three lines.
+## Before finishing any UI change
+- Verify zero tashkeel in modified/added source files and run `npm run build` cleanly.
+- Verify the running app in Playwright/Chrome at `390px` (mobile) and `1440px` (desktop) in RTL with zero horizontal overflow and zero console errors.

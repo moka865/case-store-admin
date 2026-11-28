@@ -242,10 +242,12 @@ export function PhoneCaseMockup({
           {artworkNode}
 
           {/* Catalog SVG print */}
-          {!artworkNode && artworkId && !customImage?.url ? <CaseArtwork artworkId={artworkId} /> : null}
+          {!artworkNode && artworkId && (!customImage?.url || customImage.url.startsWith('idb://')) ? (
+            <CaseArtwork artworkId={artworkId} />
+          ) : null}
 
-          {/* Custom uploaded image (transformed cleanly inside clipped shell) */}
-          {customImage?.url ? (
+          {/* Custom uploaded image (transformed cleanly inside clipped shell; never fetch raw idb:// refs) */}
+          {customImage?.url && !customImage.url.startsWith('idb://') ? (
             <g
               transform={`translate(${120 + (customImage.x || 0) * 1.4}, ${
                 250 + (customImage.y || 0) * 2.4

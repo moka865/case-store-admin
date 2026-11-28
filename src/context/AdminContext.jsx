@@ -1,25 +1,84 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { adminService } from '../services/adminService';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { ADMIN_ROLES, adminService } from '../services/adminService';
 
 const AdminContext = createContext(null);
 
+function scrubUnresolvedIdbUrls(orders = []) {
+  return orders.map((order) => ({
+    ...order,
+    items: (order.items || []).map((item) => {
+      const url = item?.printSpec?.designSource?.imageUrl;
+      if (typeof url !== 'string' || !url.startsWith('idb://')) return item;
+      return {
+        ...item,
+        printSpec: {
+          ...item.printSpec,
+          designSource: {
+            ...item.printSpec.designSource,
+            imageUrl: null,
+          },
+        },
+      };
+    }),
+  }));
+}
+
 export function AdminProvider({ children }) {
+  const [role, setRoleState] = useState(() => adminService.getRole());
   const [storeConfig, setStoreConfig] = useState(() => adminService.getStoreConfig());
   const [products, setProducts] = useState(() => adminService.getProducts());
   const [categories, setCategories] = useState(() => adminService.getCategories());
   const [models, setModels] = useState(() => adminService.getModels());
   const [governorates, setGovernorates] = useState(() => adminService.getGovernorates());
   const [materials, setMaterials] = useState(() => adminService.getMaterials());
-  const [notice, setNotice] = useState('');
 
+  const [orders, setOrders] = useState(() => scrubUnresolvedIdbUrls(adminService.getOrdersRaw()));
+  const [isHydratingOrders, setIsHydratingOrders] = useState(true);
+  const [missingModelRequests, setMissingModelRequests] = useState(() =>
+    adminService.getMissingModelRequests()
+  );
+
+  const [notice, setNotice] = useState('');
   const noticeTimerRef = useRef(null);
   const phoneBrands = useMemo(() => adminService.getPhoneBrands(), []);
+
+  // Hydrate any idb:// order images from admin's own IndexedDB on mount
+  const refreshHydratedOrders = useCallback(async () => {
+    try {
+      const hydrated = await adminService.getOrdersHydrated();
+      setOrders(hydrated);
+    } finally {
+      setIsHydratingOrders(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshHydratedOrders();
+  }, [refreshHydratedOrders]);
 
   const announce = useCallback((message) => {
     setNotice(message);
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
-    noticeTimerRef.current = window.setTimeout(() => setNotice(''), 3200);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(''), 4200);
   }, []);
+
+  const setRole = useCallback(
+    (nextRole) => {
+      const saved = adminService.setRole(nextRole);
+      setRoleState(saved);
+      const label = ADMIN_ROLES.find((r) => r.id === saved)?.labelAr || saved;
+      announce(`اتحولت لعرض: ${label}`);
+    },
+    [announce]
+  );
 
   const previewModel = useMemo(() => {
     return (
@@ -51,6 +110,15 @@ export function AdminProvider({ children }) {
       setProducts(list);
       announce(productData.id ? 'تم تحديث التصميم وحفظه.' : 'تمت إضافة التصميم الجديد.');
       return product;
+    },
+    [announce]
+  );
+
+  const toggleProductActive = useCallback(
+    (productId, active) => {
+      const next = adminService.toggleProductActive(productId, active);
+      setProducts(next);
+      announce(active ? 'التصميم بقى متاح في المتجر.' : 'التصميم اتخفى مؤقتا.');
     },
     [announce]
   );
@@ -152,15 +220,83 @@ export function AdminProvider({ children }) {
     [announce]
   );
 
-  const resetToDefaults = useCallback(() => {
-    const restored = adminService.resetToDefaults();
+  // ---------- Operations actions ----------
+  const updateOrderStatus = useCallback(
+    async (orderId, nextStatus, note = '') => {
+      const res = adminService.updateOrderStatus(orderId, nextStatus, note);
+      if (res.ok) {
+        await refreshHydratedOrders();
+        announce('تم تحديث حالة الأوردر.');
+      }
+      return res;
+    },
+    [refreshHydratedOrders, announce]
+  );
+
+  const resolveOrderPendingModel = useCallback(
+    async (orderId, modelObj) => {
+      const res = adminService.resolveOrderPendingModel(orderId, modelObj);
+      if (res.ok) {
+        await refreshHydratedOrders();
+        announce('تم تحديد موديل الموبايل للأوردر.');
+      }
+      return res;
+    },
+    [refreshHydratedOrders, announce]
+  );
+
+  const updateOrderNotes = useCallback(
+    async (orderId, notes) => {
+      const res = adminService.updateOrderInternalNotes(orderId, notes);
+      if (res.ok) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, internalNotes: notes } : o))
+        );
+      }
+      return res;
+    },
+    []
+  );
+
+  const updateMissingModelRequest = useCallback(
+    (reqId, patch) => {
+      const next = adminService.updateMissingModelRequest(reqId, patch);
+      setMissingModelRequests(next);
+      if (patch.status) announce('تم تحديث حالة طلب الموديل.');
+      return next;
+    },
+    [announce]
+  );
+
+  const importHandoffJson = useCallback(
+    async (rawJson) => {
+      const res = await adminService.importHandoffPayload(rawJson);
+      if (res.ok) {
+        await refreshHydratedOrders();
+        setMissingModelRequests(adminService.getMissingModelRequests());
+      }
+      return res;
+    },
+    [refreshHydratedOrders]
+  );
+
+  // ---------- Split Resets ----------
+  const resetCatalogToDefaults = useCallback(() => {
+    const restored = adminService.resetCatalogToDefaults();
     setStoreConfig(restored.storeConfig);
     setProducts(restored.products);
     setCategories(restored.categories);
     setModels(restored.models);
     setGovernorates(restored.governorates);
     setMaterials(restored.materials);
-    announce('رجّعنا البيانات الأصلية للكتالوج.');
+    announce('رجعنا بيانات الكتالوج للأصل.');
+  }, [announce]);
+
+  const resetOperationsToDefaults = useCallback(async () => {
+    const restored = await adminService.resetOperationsToDefaults();
+    setOrders(restored.orders);
+    setMissingModelRequests(restored.missingModelRequests);
+    announce('رجعنا الطلبات والموديلات الناقصة للأصل.');
   }, [announce]);
 
   const exportCatalogJson = useCallback(() => {
@@ -181,6 +317,8 @@ export function AdminProvider({ children }) {
   }, [announce]);
 
   const value = {
+    role,
+    setRole,
     storeConfig,
     products,
     categories,
@@ -188,10 +326,14 @@ export function AdminProvider({ children }) {
     models,
     governorates,
     materials,
+    orders,
+    isHydratingOrders,
+    missingModelRequests,
     previewModel,
     notice,
     updateStoreConfig,
     saveProduct,
+    toggleProductActive,
     deleteProduct,
     saveCategory,
     reorderCategory,
@@ -202,7 +344,13 @@ export function AdminProvider({ children }) {
     deleteGovernorate,
     saveMaterial,
     deleteMaterial,
-    resetToDefaults,
+    updateOrderStatus,
+    resolveOrderPendingModel,
+    updateOrderNotes,
+    updateMissingModelRequest,
+    importHandoffJson,
+    resetCatalogToDefaults,
+    resetOperationsToDefaults,
     exportCatalogJson,
   };
 
